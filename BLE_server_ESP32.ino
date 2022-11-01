@@ -15,13 +15,13 @@
 #define LIGHT_BASE_UUID                  "6a9d6db8-7dbe-4ae1-a5bc-b4e55a2d73d"
 #define LIGHT_SERVICE_UUID               LIGHT_BASE_UUID "0"
 #define LED_CHARACTERISTIC_UUID          LIGHT_BASE_UUID "1"
-#define FOTORESISTOR_CHARACTERISTIC_UUID LIGHT_BASE_UUID "2"
+#define COUNTER_CHARACTERISTIC_UUID      LIGHT_BASE_UUID "2"
+
 
 #define LED_PIN 13
-#define FOTORESISTOR_PIN 36
 
-uint16_t fotoResistorValue=0;
-BLECharacteristic* pFOTORESISTORCharacteristic = NULL;
+uint16_t counterValue=0;
+BLECharacteristic* pCOUNTERCharacteristic = NULL;
 
 
 class LEDCallbacks: public BLECharacteristicCallbacks {
@@ -32,17 +32,8 @@ class LEDCallbacks: public BLECharacteristicCallbacks {
         }else{
           digitalWrite(LED_PIN, LOW);
           }
-    }
-};
-
-class FOTORESISTORCallbacks: public BLECharacteristicCallbacks {
-    void onWrite(BLECharacteristic *pCharacteristic) {
-        uint8_t value = *pCharacteristic->getData();
-        if (value > 0) {
-          digitalWrite(LED_PIN, HIGH);
-        }else{
-          digitalWrite(LED_PIN, LOW);
-          }
+        Serial.print("LED:");
+        Serial.println(value);
     }
 };
 
@@ -57,7 +48,6 @@ void setup() {
   BLEService *pService = pServer->createService(LIGHT_SERVICE_UUID);
   BLECharacteristic *pLEDCharacteristic = pService->createCharacteristic(
                                            LED_CHARACTERISTIC_UUID,
-                                           BLECharacteristic::PROPERTY_READ |
                                            BLECharacteristic::PROPERTY_WRITE
                                          );
 
@@ -65,17 +55,16 @@ void setup() {
   uint8_t init_value=1;
   pLEDCharacteristic->setValue(&init_value,1);// value=0 and length=1 NOTE: That 0 is uint8 (8 bits= 1 byte)
 //----------------------------
-  pFOTORESISTORCharacteristic = pService->createCharacteristic(
-                                         FOTORESISTOR_CHARACTERISTIC_UUID,
+  pCOUNTERCharacteristic = pService->createCharacteristic(
+                                         COUNTER_CHARACTERISTIC_UUID,
                                          BLECharacteristic::PROPERTY_READ   |
-                                         BLECharacteristic::PROPERTY_WRITE  |
-                                         BLECharacteristic::PROPERTY_NOTIFY |
-                                         BLECharacteristic::PROPERTY_INDICATE
+                                         BLECharacteristic::PROPERTY_NOTIFY 
                                        );
- pFOTORESISTORCharacteristic->addDescriptor(new BLE2902());
 
-
-
+  BLE2902 *pBLE2902 = new BLE2902();
+  pBLE2902->setNotifications(true);
+  pCOUNTERCharacteristic->addDescriptor(pBLE2902);
+  pCOUNTERCharacteristic->setValue(counterValue);
 
   pService->start();
   
@@ -87,8 +76,10 @@ void setup() {
 }
 
 void loop() {
-  fotoResistorValue = analogRead(FOTORESISTOR_PIN);
-  pFOTORESISTORCharacteristic->setValue(fotoResistorValue);
-  pFOTORESISTORCharacteristic->notify();
+  counterValue++;
+  pCOUNTERCharacteristic->setValue(counterValue);
+  pCOUNTERCharacteristic->notify();
+  Serial.print("Counter:");
+  Serial.println(counterValue);
   delay(2000);
 }
